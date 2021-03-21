@@ -44,8 +44,8 @@ shape_dict = {input_name: x.shape}
 sym, params = relay.frontend.from_onnx(onnx_model, shape_dict)
 print(sym)
 # 这里利用TVM构建出优化后模型的信息
-with relay.build_config(opt_level=2):
-    lib = relay.build(sym, target=target, target_host=target,params=params)
+with tvm.transform.PassContext(opt_level=2):
+     lib = relay.build(sym, target=target, target_host=target,params=params)
 
 dtype = 'float32'
 
