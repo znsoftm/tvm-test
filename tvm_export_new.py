@@ -1,6 +1,4 @@
-#import torch
 import onnx
-#import cv2
 import os
 import platform
 import tvm 
@@ -37,7 +35,9 @@ img = preprocess(img)
 x = img[np.newaxis, :]
 
 # 这里首先在PC的CPU上进行测试 所以使用LLVM进行导出
-target = tvm.target.Target('llvm')
+
+targetstring="llvm -mcpu=core-avx2"
+target = tvm.target.Target(targetstring)
 
 input_name = 'input'  # 这儿的名字可以用netron 查看网络结构，找到input节点的name 
 shape_dict = {input_name: x.shape}
@@ -45,7 +45,7 @@ sym, params = relay.frontend.from_onnx(onnx_model, shape_dict)
 print(sym)
 # 这里利用TVM构建出优化后模型的信息
 with relay.build_config(opt_level=2):
-    lib = relay.build(sym, target, params=params)
+    lib = relay.build(sym, target=target, target_host=target,params=params)
 
 dtype = 'float32'
 
@@ -62,15 +62,17 @@ lib.export_library(libpath)
 
 loaded_lib = tvm.runtime.load_module(libpath)
 # 这里执行的平台为CPU
-ctx = tvm.cpu()
+#ctx = tvm.cpu()
+ctx = tvm.context(targetstring)
 
 module = graph_runtime.GraphModule(lib["default"](ctx))
 module.set_input("input", x)  #此处也是输入节点名字
 module.run()
 out_deploy = module.get_output(0).asnumpy()
-
+'''
 def soft_max(z):
     t=np.exp(z)
     a=np.exp(z)/np.sum(t,axis=1)
     return a
-print(np.argmax(soft_max(out_deploy)))
+'''
+print(np.argmax(out_deploy))
